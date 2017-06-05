@@ -43,9 +43,9 @@
 
 #include <stdlib.h>         // free
 #include <stdio.h>          // open, printf, vprintf
-#include <unistd.h>			// open on some *nix
-#include <fcntl.h>			// open on some *nix
-#include <termios.h>		// termios, tcgetattr, tcflush, tcsetattr
+#include <unistd.h>         // open on some *nix
+#include <fcntl.h>          // open on some *nix
+#include <termios.h>        // termios, tcgetattr, tcflush, tcsetattr
 
 #include <string.h>         // strncpy, strlen
 #include <strings.h>        // strcasecmp
