@@ -197,11 +197,8 @@ const char *RN2XX3_ExecCmd(const char *cmd) {
             printf("Command: %s", cmd);
         }
     }
-    if (strlen(tx_buffer) > 0) {
-        bool success = uart_send();
-        if (success) {
-            response = &rx_buffer[0];
-        } 
+    if (strlen(tx_buffer) > 0 && uart_send()) {
+        response = &rx_buffer[0];
     }
     return response;
 }
