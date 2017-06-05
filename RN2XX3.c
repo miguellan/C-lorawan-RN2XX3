@@ -52,7 +52,6 @@
 #include <sys/time.h>       // gettimeofday
 #include <sys/select.h>     // select
 
-#include <stdarg.h>         // va_list, va_start, va_end
 #include <stdint.h>         // uint64_t
 #include <errno.h>          // errno
 
@@ -67,6 +66,7 @@
 #ifdef _BCDBG
 //#define _BCVBS
 #include <inttypes.h>       // PRId64
+#include <stdarg.h>         // va_list, va_start, va_end
 #endif
 
 // can be used to bring chip from sleep sooner
