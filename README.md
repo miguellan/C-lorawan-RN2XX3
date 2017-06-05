@@ -1,4 +1,4 @@
-N2XX3 lib
+# c-RN2XX3 lib
 
 http://ww1.microchip.com/downloads/en/DeviceDoc/40001811A.pdf
 
@@ -27,4 +27,3 @@ Here's the setup, using AdaFruit T Cobbler, RPi Zero and breakout:
 ![RPI Zero and RN3903 over UART](https://github.com/miguellan/python-lorawan-RN2XX3/blob/master/RN2903.jpg?raw=true)
 
 The goal of this project, is to create a simple library, and starting point, for anyone evaluating RN2XX3 LoRaWAN chips.  If you found this repo helpful, and want to contribute.  Please fork, and create a pull request with your changes, and it will be merged.
-
