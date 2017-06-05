@@ -49,13 +49,12 @@
 
 #include <string.h>         // strncpy, strlen
 #include <strings.h>        // strcasecmp
-#include <stdarg.h>         // va_list, va_start, va_end
 #include <sys/time.h>       // gettimeofday
 #include <sys/select.h>     // select
 
+#include <stdarg.h>         // va_list, va_start, va_end
 #include <stdint.h>         // uint64_t
 #include <errno.h>          // errno
-//#include <pthread.h>        
 
 
 /*==================
