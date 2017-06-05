@@ -163,7 +163,7 @@ int RN2XX3_GetSerial() {
 }
 
 void RN2XX3_SetSerialRxTimeout(const int timeoutMs) {
-    uartRxTimeout = (timeoutMs > UART_TX_TIMEOUT_MIN) ? UART_TX_TIMEOUT_MIN : timeoutMs;
+    uartRxTimeout = (timeoutMs < UART_TX_TIMEOUT_MIN) ? UART_TX_TIMEOUT_MIN : timeoutMs;
 }
 
 int RN2XX3_Close() {
