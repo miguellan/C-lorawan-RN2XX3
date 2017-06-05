@@ -53,8 +53,8 @@
 #include <sys/time.h>       // gettimeofday
 #include <sys/select.h>     // select
 
-#include <stdbool.h>        // bool data type
 #include <stdint.h>         // uint64_t
+#include <errno.h>          // errno
 //#include <pthread.h>        
 
 
@@ -66,7 +66,7 @@
 
 
 #ifdef _BCDBG
-#define _BCVBS
+//#define _BCVBS
 #include <inttypes.h>       // PRId64
 #endif
 
@@ -79,6 +79,7 @@
 #define TS_EPOCH 1262304000000 // Jan 1 2010 00:00:00
 
 #define UART_RX_TIMEOUT_MS 500
+#define UART_TX_TIMEOUT_MIN 100
 #define UART_RX_SLEEP_MS 100
 
 #ifndef NUL
@@ -90,6 +91,7 @@
 #endif
 
 static int uart0 = 0;
+static int uartRxTimeout = UART_RX_TIMEOUT_MS;
 static unsigned char tx_buffer[TX_BUFFER_SZ] = {};
 static unsigned char rx_buffer[RX_BUFFER_SZ] = {};
 static unsigned char **rx_multi_lines = NULL;
@@ -110,7 +112,7 @@ typedef uint64_t Timestamp_t;
 
 static void DLog(const char *format, ...);
 static bool uart_send();
-static RxDataResponse_t uart_receive(const int timeoutMs = UART_RX_TIMEOUT_MS);
+static RxDataResponse_t uart_receive();
 static bool valid_response();
 
 static Timestamp_t getTimestamp();
@@ -144,20 +146,24 @@ void RN2XX3_Init() {
 
         // RN2XX3 modules use 57600, 8-bit, no parity
         options.c_cflag = B57600 | CS8 | CREAD | CLOCAL; 
-        options.c_iflag = 0; // IGNPAR;
+        options.c_iflag = IGNPAR; // no parity
         options.c_oflag = OCRNL; // RN2XX2 modules use \r\n at the end of everything (not sure this matters though)
         options.c_lflag = 0;
         tcflush(uart0, TCIFLUSH);
         tcsetattr(uart0, TCSANOW, &options);
-        DLog("INITIALIZED at: %i", uart0);
+        DLog("UART INITIALIZED");
     } else {
         uart0 = 0;
-        DLog("Error: Failed to initialize - Unable to acccess uart\n");
+        DLog("Error: Failed to initialize - Unable to acccess uart");
     }
 }
 
 int RN2XX3_GetSerial() {
     return uart0;
+}
+
+void RN2XX3_SetSerialRxTimeout(const int timeoutMs) {
+    uartRxTimeout = (timeoutMs > UART_TX_TIMEOUT_MIN) ? UART_TX_TIMEOUT_MIN : timeoutMs;
 }
 
 int RN2XX3_Close() {
@@ -187,20 +193,15 @@ const char *RN2XX3_ExecCmd(const char *cmd) {
             memcpy(&tx_buffer, cmd, cmd_len);
             tx_buffer[cmd_len] = NUL; // assumes <CR><LF> part of cmd
         } else {
-            DLog("Increase buffer size for commands\n");
+            perror("Increase buffer size for commands\n");
             printf("Command: %s", cmd);
         }
-    } else {
-        DLog("UART not initialized\n");
     }
-    if (strlen(tx_buffer) > 0 && uart_send()) {
-        DLog("Sent command: %s", tx_buffer);
-        response = &rx_buffer[0];
-        if (response) {
-#ifdef _BCVBS
-            DLog("Response is: %s", rx_buffer);
-#endif
-        }
+    if (strlen(tx_buffer) > 0) {
+        bool success = uart_send();
+        if (success) {
+            response = &rx_buffer[0];
+        } 
     }
     return response;
 }
@@ -212,15 +213,15 @@ const char* RN2XX3_GetSysVersion() {
     return NULL;
 }
 
-void RN2XX3_SysSleep(const int intervalMs) {
+bool RN2XX3_SysSleep(const int intervalMs) {
+    bool valid = false;
     if (uart0 > 0) {
         char cmd[40] = {};
         snprintf(cmd, 39, "sys sleep %i\r\n", intervalMs); // TODO: move this into ExecCmd
         const char *response = RN2XX3_ExecCmd(cmd);
-#ifdef _BCVBS
-        DLog("SYSTEM SLEEPING: %s", (valid_response() ? "YES" : "NO"));
-#endif
+        valid = valid_response();
     }
+    return valid;
 }
 
 /*==================
@@ -240,10 +241,7 @@ static void DLog(const char *format, ...) {
 }
 
 static bool valid_response() {
-    int cmp = strcasecmp("ok\r\n", rx_buffer);
-    DLog("%i rx_buffer == %s", cmp, rx_buffer);
-    bool valid = (0 == cmp);
-    return valid;
+    return (0 == strcasecmp("ok\r\n", rx_buffer));
 }
 
 // TODO: run tx/rx on bg pthread and use callbacks for data readiness
@@ -256,11 +254,10 @@ static bool uart_send() {
         success = (tx_len == bytes_sent);
         memset(&rx_buffer, 0, RX_BUFFER_SZ);
         if (bytes_sent <= 0) {
-            DLog("UART TX error\n");
+            DLog("UART TX error, failed to send: %s\n", tx_buffer);
         } else switch(uart_receive()) { // listen for response
             case RX_ONE_LINE: {
                 success = true;
-                DLog("RECEIVED 1-LINE RESPONSE: %s", rx_buffer);
                 break;
             }
             case RX_MUTLI_LINE: // TODO: add support
@@ -268,25 +265,26 @@ static bool uart_send() {
             case NO_DATA:
                 break;
             case RX_FAILURE:
-                DLog("FAILED TO PROCESS RX DATA");
                 break;
         }
     }
     return success;
 }
 
-static RxDataResponse_t uart_receive(const int timeoutMs) {
+static RxDataResponse_t uart_receive() {
     RxDataResponse_t response = NO_DATA;
     if (uart0 > 0) {
         const int buf_len = RX_BUFFER_SZ - 1;
 
         // TODO: if sys sleep, then we should sleep as long as the sleep cmd
         Timestamp_t ctime = getTimestamp(),
-            etime = (ctime + timeoutMs);
+            etime = (ctime + uartRxTimeout);
         while(ctime < etime) {
             int rx_len = read(uart0, (void *)rx_buffer, buf_len);
             if (rx_len < 0) {
-                DLog("UART RX error\n");
+                if (EAGAIN != errno) {
+                    DLog("UART RX error");
+                }
                 response = RX_FAILURE;
             } else if (rx_len > 0) {
                 response = RX_ONE_LINE;
@@ -321,7 +319,7 @@ static Timestamp_t getTimestamp() {
 
 static Timestamp_t getUnixTime() {
     struct timeval tv;
-    gettimeofday(&tv, NULL);
+    gettimeofday(&tv, NULL); // TODO: switch out to use monotonic time, this would be off by changing date/time on *nix, while this was running
     Timestamp_t ts = ((Timestamp_t) (tv.tv_sec) * 1000) + ((Timestamp_t) (tv.tv_usec) / 1000);
     return ts;
 }
@@ -335,13 +333,14 @@ static void sleepFor(const int ms) {
 
 
 /*==================
-// PRIVATE
+// TEST
 //================*/
 
 int main(void) {
     RN2XX3_Init();
     const char *version = RN2XX3_GetSysVersion();
     DLog("SYSTEM VERSION IS: %s", version);
+    // TODO: isnt it obvious?
     RN2XX3_SysSleep(250); // sleep with module for 3 seconds
     RN2XX3_Close();
 }
