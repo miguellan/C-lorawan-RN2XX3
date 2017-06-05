@@ -2,7 +2,7 @@
 
 http://ww1.microchip.com/downloads/en/DeviceDoc/40001811A.pdf
 
-This is the shell of a C wrapper-library around the serial command API, over UART, for Microchip RN2483 and RN2903 LoRaWAN using Tindie breakout.
+This is the shell of a C adapter-library around the serial command API, over UART, for Microchip RN2483 and RN2903 LoRaWAN using Tindie breakout.
 
 This project uses a RN2903A, on a breakout purchased from Azzy's Electronics on Tindie.
 
