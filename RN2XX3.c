@@ -41,7 +41,7 @@
 
 #include "RN2XX3.h"
 
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 199309L // required for clock_gettime to be defined in <time.h>
 
 #include <stdlib.h>         // free
 #include <stdio.h>          // open, printf, vprintf
