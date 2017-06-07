@@ -294,18 +294,10 @@ static RxDataResponse_t uart_receive() {
                 // DLog("Received no response");
                 response = NO_DATA; // redundant
             }
-            ctime = getTimestamp(); // update timestamp
-// #ifdef _BCDBG
-            // if (ctime > 0) {
-                // char fmt[50] = {};
-                // snprintf(fmt, 49, "CURRENT MS: %%%s, TIME LEFT: %%s", PRId64);
-                // DLog(fmt, ctime, (etime - ctime));
-                // int timeLeft = (int)(etime - ctime);
-                // DLog("TIME LEFT: %i", (timeLeft > 0 ? timeLeft : 0));
-            //  }
-// #endif
-            if ((etime-ctime) < 0) break;
+            if ((etime - getTimestamp()) < 0) break;
             else sleepFor(UART_RX_SLEEP_MS);
+
+            ctime = getTimestamp(); // update timestamp
         }
     }
     return response;
