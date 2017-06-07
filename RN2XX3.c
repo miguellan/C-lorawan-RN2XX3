@@ -176,8 +176,11 @@ int RN2XX3_Close() {
         }
         uart0 = 0;
     }
-    if (rx_multi_lines) for (char *line = *rx_multi_lines; line; line=*++rx_multi_lines) {
-        free(line);
+    if (rx_multi_lines) {
+        for (char *line = *rx_multi_lines; line; line=*++rx_multi_lines) {
+            free(line);
+        }
+        free(rx_multi_lines);
     }
     return result;
 }
