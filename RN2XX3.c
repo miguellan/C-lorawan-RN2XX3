@@ -41,6 +41,8 @@
 
 #include "RN2XX3.h"
 
+#define _POSIX_C_SOURCE 199309L
+
 #include <stdlib.h>         // free
 #include <stdio.h>          // open, printf, vprintf
 #include <unistd.h>         // open on some *nix
@@ -52,8 +54,15 @@
 #include <sys/time.h>       // gettimeofday
 #include <sys/select.h>     // select
 
+#include <stdarg.h>         // va_list, va_start, va_end
 #include <stdint.h>         // uint64_t
+// #include <inttypes.h>       // PRId64
+
 #include <errno.h>          // errno
+
+#include <time.h>           // clock_gettime
+
+
 
 
 /*==================
@@ -61,13 +70,6 @@
 //================*/
 
 #define _BCDBG // debug flag: comment to silence logging
-
-
-#ifdef _BCDBG
-//#define _BCVBS
-#include <inttypes.h>       // PRId64
-#include <stdarg.h>         // va_list, va_start, va_end
-#endif
 
 // can be used to bring chip from sleep sooner
 // used to tell UART to auto-detect baud rate if needed
@@ -116,6 +118,7 @@ static bool valid_response();
 
 static Timestamp_t getTimestamp();
 static Timestamp_t getUnixTime();
+static Timestamp_t getMonoTime();
 static void sleepFor(const int ms);
 
 
@@ -303,14 +306,25 @@ static RxDataResponse_t uart_receive() {
     return response;
 }
 
+static Timestamp_t getMonoTime() {
+    static const double NS_TO_MS = 1.0 / 1000000.0;
+    struct timespec tspec;
+    clock_gettime(CLOCK_MONOTONIC, &tspec);
+    const Timestamp_t ns = (Timestamp_t)(tspec.tv_nsec * NS_TO_MS),
+        result = (Timestamp_t)((tspec.tv_sec * 1000ULL) + ns);
+    return result;
+}
+
 static Timestamp_t getTimestamp() {
-    Timestamp_t ts = getUnixTime();
-    return (ts - TS_EPOCH);
+    // Timestamp_t ts = getMonoTime() ?: getUnixTime();
+    // return (ts - TS_EPOCH);
+    return getMonoTime();
 }
 
 static Timestamp_t getUnixTime() {
+    // fallback, but this would be off by changing date/time on the *nix system, while this code was running
     struct timeval tv;
-    gettimeofday(&tv, NULL); // TODO: switch out to use monotonic time, this would be off by changing date/time on *nix, while this was running
+    gettimeofday(&tv, NULL); 
     Timestamp_t ts = ((Timestamp_t) (tv.tv_sec) * 1000) + ((Timestamp_t) (tv.tv_usec) / 1000);
     return ts;
 }
